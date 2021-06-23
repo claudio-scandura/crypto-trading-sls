@@ -16,7 +16,7 @@ public class MovingAverages {
     }
 
     public static abstract class MovingAverage {
-        private final int period;
+        public final int period;
         private BigDecimal value;
         private final LinkedList<BigDecimal> observations = new LinkedList<>();
 
