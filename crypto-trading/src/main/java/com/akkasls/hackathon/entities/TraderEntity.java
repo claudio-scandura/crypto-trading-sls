@@ -9,13 +9,17 @@ import com.akkasls.hackathon.AddCandleCommand;
 import com.akkasls.hackathon.NewTraderCommand;
 import com.akkasls.hackathon.Trader;
 import com.akkasls.hackathon.TraderAdded;
+import lombok.extern.slf4j.Slf4j;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 
 @EventSourcedEntity(entityType = "traders")
+@Slf4j
 public class TraderEntity {
 
     private final String entityId;
+
     private Optional<Trader> traderState = Optional.empty();
 
     public TraderEntity(@EntityId String entityId) {
@@ -39,5 +43,30 @@ public class TraderEntity {
         }, () -> traderState = Optional.of(event.getTrader()));
     }
 
+    private void buy(BigDecimal quantity, BigDecimal exchangeRate) {
+        traderState.ifPresent(trader -> {
+            if (trader.getQuoteBalance() >= exchangeRate.multiply(quantity).doubleValue()) {
+                traderState = Optional.of(trader.toBuilder()
+                        .setBaseBalance(quantity.add(BigDecimal.valueOf(trader.getBaseBalance())).doubleValue())
+                        .setQuoteBalance(trader.getQuoteBalance() - exchangeRate.multiply(quantity).doubleValue())
+                        .build());
+            } else {
+                log.warn("not enough {} funds for entity {}!", trader.getQuoteAsset(), entityId);
+            }
+        });
+    }
+
+    private void sell(BigDecimal quantity, BigDecimal exchangeRate) {
+        traderState.ifPresent(trader -> {
+            if (trader.getBaseBalance() >= quantity.doubleValue()) {
+                traderState = Optional.of(trader.toBuilder()
+                        .setBaseBalance(trader.getBaseBalance() - quantity.doubleValue())
+                        .setQuoteBalance(trader.getQuoteBalance() + exchangeRate.multiply(quantity).doubleValue())
+                        .build());
+            } else {
+                log.warn("not enough {} funds for entity {}!", trader.getBaseAsset(), entityId);
+            }
+        });
+    }
 
 }

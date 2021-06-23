@@ -15,6 +15,8 @@ message Trader {
   string quote_asset = 3; // asset used to sell/buying (i.e. BTC/EUR -> EUR)
   int32 short_ma_period = 4; // the number of periods on which to calculate the short moving average
   int32 long_ma_period = 5; // the number of periods on which to calculate the short moving average
+  double base_balance = 6;
+  double quote_balance = 7;
 }
 
 message CandleStick {
