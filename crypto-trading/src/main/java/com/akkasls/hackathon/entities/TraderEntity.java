@@ -6,15 +6,20 @@ import com.akkaserverless.javasdk.eventsourcedentity.CommandHandler;
 import com.akkaserverless.javasdk.eventsourcedentity.EventHandler;
 import com.akkaserverless.javasdk.eventsourcedentity.EventSourcedEntity;
 import com.akkasls.hackathon.AddCandleCommand;
+import com.akkasls.hackathon.CandleStick;
+import com.akkasls.hackathon.MovingAverageUpdated;
 import com.akkasls.hackathon.NewTraderCommand;
 import com.akkasls.hackathon.OrderPlaced;
 import com.akkasls.hackathon.Trader;
 import com.akkasls.hackathon.TraderAdded;
+import com.akkasls.hackathon.indicators.MovingAverages;
+import com.akkasls.hackathon.indicators.MovingAverages.MovingAverage;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.swing.text.html.Option;
 import java.math.BigDecimal;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Stream;
 
 @EventSourcedEntity(entityType = "traders")
 @Slf4j
@@ -23,6 +28,12 @@ public class TraderEntity {
     private final String entityId;
 
     private Optional<Trader> traderState = Optional.empty();
+    private double shortMaValue = 0.0;
+    private double longMaValue = 0.0;
+
+    // auxiliary stateful deps – not part of the state
+    private MovingAverage shortMa;
+    private MovingAverage longMa;
 
     public TraderEntity(@EntityId String entityId) {
         this.entityId = entityId;
@@ -36,13 +47,52 @@ public class TraderEntity {
     }
 
     @CommandHandler
-    public void addCandle(AddCandleCommand command) {
+    public void addCandle(AddCandleCommand command, CommandContext ctx) {
+        updateMovingAverages(command.getCandle())
+                .forEach(ctx::emit);
     }
 
     @EventHandler
     public void traderAdded(TraderAdded event) {
         traderState.ifPresentOrElse(nu -> {
-        }, () -> traderState = Optional.of(event.getTrader()));
+        }, () -> {
+            var trader = event.getTrader();
+            var maType = trader.getMaType();
+            traderState = Optional.of(trader);
+            shortMa = movingAverageFor(maType).apply(trader.getShortMaPeriod());
+            longMa = movingAverageFor(maType).apply(trader.getLongMaPeriod());
+        });
+    }
+
+    @EventHandler
+    public void movingAverageUpdated(MovingAverageUpdated event) {
+        if (event.getPeriod() == shortMa.period) {
+            this.shortMaValue = event.getValue();
+        } else {
+            this.longMaValue = event.getValue();
+        }
+    }
+
+
+    private Function<Integer, MovingAverage> movingAverageFor(String maType) {
+        switch (maType) {
+            case "simple":
+                return MovingAverages::simple;
+            case "exponential":
+                return MovingAverages::exponential;
+            default:
+                throw new IllegalArgumentException("Unsupported Moving Average type: " + maType);
+        }
+    }
+
+    private Stream<MovingAverageUpdated> updateMovingAverages(CandleStick candle) {
+        var maybeShortMa = shortMa.updateWith(BigDecimal.valueOf(candle.getClosingPrice())).value()
+                .map(toMovingAverageUpdated(shortMa.period, candle.getTime()));
+
+        var maybeLongMa = longMa.updateWith(BigDecimal.valueOf(candle.getClosingPrice())).value()
+                .map(toMovingAverageUpdated(longMa.period, candle.getTime()));
+
+        return Stream.concat(maybeShortMa.stream(), maybeLongMa.stream());
     }
 
     @EventHandler
@@ -87,6 +137,15 @@ public class TraderEntity {
                 return Optional.empty();
             }
         });
+    }
+
+
+    private static Function<BigDecimal, MovingAverageUpdated> toMovingAverageUpdated(int period, long time) {
+        return value -> MovingAverageUpdated.newBuilder()
+                .setPeriod(period)
+                .setValue(value.doubleValue())
+                .setTime(time)
+                .build();
     }
 
 }

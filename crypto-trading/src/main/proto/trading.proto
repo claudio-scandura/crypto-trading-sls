@@ -17,6 +17,7 @@ message Trader {
   int32 long_ma_period = 5; // the number of periods on which to calculate the short moving average
   double base_balance = 6;
   double quote_balance = 7;
+  string ma_type = 8; // MovingAverage implementation
 }
 
 message CandleStick {
@@ -49,6 +50,12 @@ message OrderPlaced {
     string type = 2;
     double quantity = 3;
     double exchangeRate = 4;
+}
+
+message MovingAverageUpdated {
+  int32 period = 1;
+  double value = 2;
+  int64 time = 3;
 }
 
 service CryptoTradingService {
