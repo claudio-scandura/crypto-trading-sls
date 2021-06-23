@@ -44,6 +44,13 @@ message TraderAdded {
   Trader trader = 1;
 }
 
+message OrderPlaced {
+    int64 time = 1;
+    string type = 2;
+    double quantity = 3;
+    double exchangeRate = 4;
+}
+
 service CryptoTradingService {
 
   rpc AddCandle (AddCandleCommand) returns (google.protobuf.Empty) {}
