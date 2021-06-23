@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package com.akkasls.hackathon;
+option java_package = "com.akkasls.hackathon";
+option java_multiple_files = true;
+option java_generic_services= true;
+
+import "akkaserverless/annotations.proto";
+import "google/protobuf/empty.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+
+message Hello {
+  string message = 1;
+}
+
+message Greetings {
+  string trader_id = 1 [(akkaserverless.field).entity_key = true];
+}
+
+service CryptoTradingService {
+
+  rpc SayHello(Greetings) returns (Hello) {}
+
+}
