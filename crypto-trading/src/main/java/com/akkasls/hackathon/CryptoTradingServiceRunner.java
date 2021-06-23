@@ -17,7 +17,7 @@ public class CryptoTradingServiceRunner {
                         )
                 .registerView(
                         TradersByBaseAssetView.class,
-                        Trading.getDescriptor().findServiceByName("CryptoTradingViews"),
+                        Trading.getDescriptor().findServiceByName("TradersView"),
                         "tradersByBaseAsset",
                         Trading.getDescriptor())
                 .start().toCompletableFuture().get();

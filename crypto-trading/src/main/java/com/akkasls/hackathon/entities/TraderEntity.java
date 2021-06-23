@@ -14,6 +14,7 @@ import com.akkasls.hackathon.Trader;
 import com.akkasls.hackathon.TraderAdded;
 import com.akkasls.hackathon.indicators.MovingAverages;
 import com.akkasls.hackathon.indicators.MovingAverages.MovingAverage;
+import com.google.protobuf.Empty;
 import lombok.extern.slf4j.Slf4j;
 
 import java.math.BigDecimal;
@@ -28,8 +29,6 @@ public class TraderEntity {
     private final String entityId;
 
     private Optional<Trader> traderState = Optional.empty();
-    private double shortMaValue = 0.0;
-    private double longMaValue = 0.0;
 
     // auxiliary stateful deps – not part of the state
     private MovingAverage shortMa;
@@ -47,9 +46,10 @@ public class TraderEntity {
     }
 
     @CommandHandler
-    public void addCandle(AddCandleCommand command, CommandContext ctx) {
+    public Empty addCandle(AddCandleCommand command, CommandContext ctx) {
         updateMovingAverages(command.getCandle())
                 .forEach(ctx::emit);
+        return Empty.getDefaultInstance();
     }
 
     @EventHandler
@@ -66,11 +66,15 @@ public class TraderEntity {
 
     @EventHandler
     public void movingAverageUpdated(MovingAverageUpdated event) {
-        if (event.getPeriod() == shortMa.period) {
-            this.shortMaValue = event.getValue();
-        } else {
-            this.longMaValue = event.getValue();
-        }
+        traderState = traderState.map(state -> {
+            var stateBuilder = state.toBuilder();
+            if (event.getPeriod() == shortMa.period) {
+                stateBuilder.setShortMaValue(event.getValue());
+            } else {
+                stateBuilder.setLongMaValue(event.getValue());
+            }
+            return stateBuilder.build();
+        });
     }
 
 
