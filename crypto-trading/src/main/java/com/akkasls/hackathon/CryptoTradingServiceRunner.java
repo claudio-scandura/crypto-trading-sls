@@ -1,16 +1,25 @@
 package com.akkasls.hackathon;
 
-import com.akkasls.hackathon.entities.TraderEntity;
 import com.akkaserverless.javasdk.AkkaServerless;
+import com.akkasls.hackathon.entities.TraderEntity;
+import com.akkasls.hackathon.views.TradersByBaseAssetView;
 import lombok.SneakyThrows;
 
 public class CryptoTradingServiceRunner {
 
     @SneakyThrows
     public static void main(String[] args) {
-         new AkkaServerless().registerEventSourcedEntity(
-                TraderEntity.class,
-                Trading.getDescriptor().findServiceByName("CryptoTradingService")
-        ).start().toCompletableFuture().get();
+        new AkkaServerless()
+                .registerEventSourcedEntity(
+                        TraderEntity.class,
+                        Trading.getDescriptor().findServiceByName("CryptoTradingService"),
+                        Trading.getDescriptor()
+                        )
+                .registerView(
+                        TradersByBaseAssetView.class,
+                        Trading.getDescriptor().findServiceByName("CryptoTradingViews"),
+                        "tradersByBaseAsset",
+                        Trading.getDescriptor())
+                .start().toCompletableFuture().get();
     }
 }

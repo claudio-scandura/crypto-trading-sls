@@ -3,24 +3,68 @@ syntax = "proto3";
 package com.akkasls.hackathon;
 option java_package = "com.akkasls.hackathon";
 option java_multiple_files = true;
-option java_generic_services= true;
+option java_generic_services = true;
 
 import "akkaserverless/annotations.proto";
 import "google/protobuf/empty.proto";
 import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 
-
-message Hello {
-  string message = 1;
+message Trader {
+  string base_asset = 2; // asset being sold/bought (i.e. BTC/EUR -> BTC)
+  string quote_asset = 3; // asset used to sell/buying (i.e. BTC/EUR -> EUR)
+  int32 short_ma_period = 4; // the number of periods on which to calculate the short moving average
+  int32 long_ma_period = 5; // the number of periods on which to calculate the short moving average
 }
 
-message Greetings {
+message CandleStick {
+  double closing_price = 1;
+  int64 time = 2;
+}
+
+message ByBaseAsset {
+  string base_asset = 1;
+}
+
+// commands
+message NewTraderCommand {
   string trader_id = 1 [(akkaserverless.field).entity_key = true];
+  Trader trader = 2;
+}
+
+message AddCandleCommand {
+  string trader_id = 1 [(akkaserverless.field).entity_key = true];
+  CandleStick candle = 2;
+}
+
+// events
+message TraderAdded {
+  Trader trader = 1;
 }
 
 service CryptoTradingService {
 
-  rpc SayHello(Greetings) returns (Hello) {}
+  rpc AddCandle (AddCandleCommand) returns (google.protobuf.Empty) {}
 
+  rpc NewTrader (NewTraderCommand) returns (Trader) {}
+
+}
+
+service CryptoTradingViews {
+
+  rpc ProcessTraderAdded(TraderAdded) returns (Trader) {
+    option (akkaserverless.method).eventing.in = {
+      event_sourced_entity: "traders"
+    };
+    option (akkaserverless.method).view.update = {
+      table: "traders"
+      transform_updates: true
+    };
+  }
+
+  rpc GetTraders (ByBaseAsset) returns (stream Trader) {
+    option (akkaserverless.method).view.query = {
+      query: "SELECT * FROM traders WHERE base_asset = :base_asset"
+    };
+  }
 }
