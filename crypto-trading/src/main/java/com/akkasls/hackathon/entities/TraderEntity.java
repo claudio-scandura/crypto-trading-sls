@@ -162,6 +162,7 @@ public class TraderEntity {
             double quantity = 10 * slope;
             if (slope > state.getThreshold() && haveEnoughFunds(orderType, quantity)) {
                 return Optional.of(OrderPlaced.newBuilder()
+                        .setTraderId(entityId)
                         .setTime(candle.getTime())
                         .setExchangeRate(candle.getClosingPrice())
                         .setQuantity(quantity)

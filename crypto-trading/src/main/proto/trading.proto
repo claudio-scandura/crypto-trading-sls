@@ -11,6 +11,7 @@ import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 
 message TraderState {
+  string trader_id = 1;
   string base_asset = 2; // asset being sold/bought (i.e. BTC/EUR -> BTC)
   string quote_asset = 3; // asset used to sell/buying (i.e. BTC/EUR -> EUR)
   int32 short_ma_period = 4; // the number of periods on which to calculate the short moving average
@@ -32,6 +33,33 @@ message ByBaseAsset {
   string base_asset = 1;
 }
 
+message ByAssetPair {
+  string base_asset = 1;
+  string quote_asset = 2;
+}
+
+message ByPeriod {
+  int32 short_ma_period = 1;
+  int32 long_ma_period = 2;
+}
+
+message TraderBalance {
+  string trader_id = 1;
+  string base_asset = 2;
+  string quote_asset = 3;
+  double base_balance = 4;
+  double quote_balance = 5;
+  double exchange_rate = 6;
+}
+
+message MovingAverage {
+  int32 short_ma_period = 1;
+  double short_ma_value = 2;
+  int32 long_ma_period = 3;
+  double long_ma_value = 4;
+  int64 time = 5;
+}
+
 // commands
 message NewTraderCommand {
   string trader_id = 1 [(akkaserverless.field).entity_key = true];
@@ -49,10 +77,11 @@ message TraderAdded {
 }
 
 message OrderPlaced {
-  int64 time = 1;
-  string type = 2;
-  double quantity = 3;
-  double exchangeRate = 4;
+  string trader_id = 1;
+  int64 time = 2;
+  string type = 3;
+  double quantity = 4;
+  double exchangeRate = 5;
 }
 
 message MovingAverageUpdated {
@@ -104,6 +133,84 @@ service TradersView {
   rpc GetTraders (ByBaseAsset) returns (stream TraderState) {
     option (akkaserverless.method).view.query = {
       query: "SELECT * FROM traders WHERE base_asset = :base_asset"
+    };
+  }
+}
+
+service BalanceView {
+
+  rpc ProcessTraderAdded(TraderAdded) returns (TraderBalance) {
+    option (akkaserverless.method).eventing.in = {
+      event_sourced_entity: "traders"
+    };
+    option (akkaserverless.method).view.update = {
+      table: "traderBalances"
+      transform_updates: true
+    };
+  }
+
+  rpc ProcessMovingAverageUpdated(MovingAverageUpdated) returns (TraderBalance) {
+    option (akkaserverless.method).eventing.in = {
+      event_sourced_entity: "traders"
+    };
+    option (akkaserverless.method).view.update = {
+      table: "traderBalances"
+      transform_updates: true
+    };
+  }
+
+  rpc ProcessOrderPlaced(OrderPlaced) returns (TraderBalance) {
+    option (akkaserverless.method).eventing.in = {
+      event_sourced_entity: "traders"
+    };
+    option (akkaserverless.method).view.update = {
+      table: "traderBalances"
+      transform_updates: true
+    };
+  }
+
+  rpc GetTradersBalance (ByAssetPair) returns (stream TraderBalance) {
+    option (akkaserverless.method).view.query = {
+      query: "SELECT * FROM traderBalances where base_asset = :base_asset and quote_asset = :quote_asset"
+    };
+  }
+}
+
+service MovingAverageView {
+
+  rpc ProcessTraderAdded(TraderAdded) returns (MovingAverage) {
+    option (akkaserverless.method).eventing.in = {
+      event_sourced_entity: "traders"
+    };
+    option (akkaserverless.method).view.update = {
+      table: "movingAverages"
+      transform_updates: true
+    };
+  }
+
+  rpc ProcessMovingAverageUpdated(MovingAverageUpdated) returns (MovingAverage) {
+    option (akkaserverless.method).eventing.in = {
+      event_sourced_entity: "traders"
+    };
+    option (akkaserverless.method).view.update = {
+      table: "movingAverages"
+      transform_updates: true
+    };
+  }
+
+  rpc ProcessOrderPlaced(OrderPlaced) returns (MovingAverage) {
+    option (akkaserverless.method).eventing.in = {
+      event_sourced_entity: "traders"
+    };
+    option (akkaserverless.method).view.update = {
+      table: "movingAverages"
+      transform_updates: true
+    };
+  }
+
+  rpc GetMovingAverage (ByPeriod) returns (stream MovingAverage) {
+    option (akkaserverless.method).view.query = {
+      query: "SELECT * FROM movingAverages WHERE short_ma_period = :short_ma_period or long_ma_period = :long_ma_period"
     };
   }
 }
