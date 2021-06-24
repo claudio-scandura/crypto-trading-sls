@@ -1,14 +1,11 @@
-import com.google.protobuf.gradle.protobuf
-import com.google.protobuf.gradle.generateProtoTasks
-import com.google.protobuf.gradle.protoc
+import com.google.protobuf.gradle.*
+
 
 plugins {
-    java
-    idea
-    application
-    id("com.palantir.docker") version "0.26.0"
+    id("java")
+    id("io.freefair.lombok")
     id("com.google.protobuf") version "0.8.16"
-    id("io.freefair.lombok") version "6.0.0-m2"
+    id("com.palantir.docker")
 }
 
 dependencies {
@@ -17,16 +14,13 @@ dependencies {
     implementation("io.cloudstate:cloudstate-java-support:0.6.0")
     implementation("com.google.api.grpc:proto-google-common-protos:2.3.2")
     implementation("ch.qos.logback:logback-classic:1.2.3")
+    implementation("javax.annotation:javax.annotation-api:1.3.2")
+    implementation("io.grpc:grpc-stub:1.38.1")
+    implementation("io.grpc:grpc-protobuf:1.38.1")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.2")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.2")
     testImplementation("org.assertj:assertj-core:3.20.2")
-}
-
-repositories {
-    jcenter()
-    mavenCentral()
-    mavenLocal()
 }
 
 protobuf {
@@ -34,16 +28,20 @@ protobuf {
         artifact = "com.google.protobuf:protoc:3.17.3"
     }
 
+    plugins {
+        id("grpc") {
+            artifact = "io.grpc:protoc-gen-grpc-java:1.38.1"
+        }
+    }
+
     generateProtoTasks {
         all().forEach { task ->
             task.generateDescriptorSet = true
+            task.plugins {
+                id("grpc")
+            }
         }
     }
-}
-
-java {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
 }
 
 tasks {
@@ -73,5 +71,3 @@ tasks {
 application {
     mainClass.set("com.akkasls.hackathon.CryptoTradingServiceRunner")
 }
-
-

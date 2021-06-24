@@ -1,3 +1,3 @@
-
 rootProject.name = "crypto-trading-sls"
-include("crypto-trading")
+
+include("crypto-trading", "client")
