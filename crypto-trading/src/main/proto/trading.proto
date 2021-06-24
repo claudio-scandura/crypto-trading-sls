@@ -32,6 +32,16 @@ message ByBaseAsset {
   string base_asset = 1;
 }
 
+message ByAssetPair {
+  string base_asset = 1;
+  string quote_asset = 2;
+}
+
+message TraderBalance {
+  double base_balance = 1;
+  double quote_balance = 2;
+}
+
 // commands
 message NewTraderCommand {
   string trader_id = 1 [(akkaserverless.field).entity_key = true];
@@ -104,6 +114,45 @@ service TradersView {
   rpc GetTraders (ByBaseAsset) returns (stream TraderState) {
     option (akkaserverless.method).view.query = {
       query: "SELECT * FROM traders WHERE base_asset = :base_asset"
+    };
+  }
+}
+
+service BalanceView {
+
+  rpc ProcessTraderAdded(TraderAdded) returns (TraderState) {
+    option (akkaserverless.method).eventing.in = {
+      event_sourced_entity: "traders"
+    };
+    option (akkaserverless.method).view.update = {
+      table: "traders"
+      transform_updates: true
+    };
+  }
+
+  rpc ProcessMovingAverageUpdated(MovingAverageUpdated) returns (TraderState) {
+    option (akkaserverless.method).eventing.in = {
+      event_sourced_entity: "traders"
+    };
+    option (akkaserverless.method).view.update = {
+      table: "traders"
+      transform_updates: true
+    };
+  }
+
+  rpc ProcessOrderPlaced(OrderPlaced) returns (TraderState) {
+    option (akkaserverless.method).eventing.in = {
+      event_sourced_entity: "traders"
+    };
+    option (akkaserverless.method).view.update = {
+      table: "traders"
+      transform_updates: true
+    };
+  }
+
+  rpc GetTraders (ByAssetPair) returns (stream TraderBalance) {
+    option (akkaserverless.method).view.query = {
+      query: "SELECT base_balance, quote_balance FROM traders WHERE base_asset = :base_asset and quote_asset = :quote_asset"
     };
   }
 }
