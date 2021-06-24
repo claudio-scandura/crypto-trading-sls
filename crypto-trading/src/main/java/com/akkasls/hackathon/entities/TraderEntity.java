@@ -10,8 +10,8 @@ import com.akkasls.hackathon.CandleStick;
 import com.akkasls.hackathon.MovingAverageUpdated;
 import com.akkasls.hackathon.NewTraderCommand;
 import com.akkasls.hackathon.OrderPlaced;
-import com.akkasls.hackathon.TraderState;
 import com.akkasls.hackathon.TraderAdded;
+import com.akkasls.hackathon.TraderState;
 import com.akkasls.hackathon.indicators.MovingAverages;
 import com.akkasls.hackathon.indicators.MovingAverages.MovingAverage;
 import com.google.protobuf.Empty;
@@ -47,8 +47,17 @@ public class TraderEntity {
 
     @CommandHandler
     public Empty addCandle(AddCandleCommand command, CommandContext ctx) {
-        updateMovingAverages(command.getCandle())
+        var maybeShortMa = updatedMovingAverage(shortMa, command.getCandle());
+        var maybeLongMa = updatedMovingAverage(longMa, command.getCandle());
+
+        var maybeOrderPlaced = maybeShortMa.flatMap(shortMa ->
+                maybeLongMa.flatMap(longMa ->
+                        placeOrder(command.getCandle(), shortMa.getValue(), longMa.getValue())
+                ));
+
+        Stream.of(maybeShortMa, maybeLongMa, maybeOrderPlaced).flatMap(Optional::stream)
                 .forEach(ctx::emit);
+
         return Empty.getDefaultInstance();
     }
 
@@ -77,30 +86,8 @@ public class TraderEntity {
         });
     }
 
-
-    private Function<Integer, MovingAverage> movingAverageFor(String maType) {
-        switch (maType) {
-            case "simple":
-                return MovingAverages::simple;
-            case "exponential":
-                return MovingAverages::exponential;
-            default:
-                throw new IllegalArgumentException("Unsupported Moving Average type: " + maType);
-        }
-    }
-
-    private Stream<MovingAverageUpdated> updateMovingAverages(CandleStick candle) {
-        var maybeShortMa = shortMa.updateWith(BigDecimal.valueOf(candle.getClosingPrice())).value()
-                .map(toMovingAverageUpdated(shortMa.period, candle.getTime()));
-
-        var maybeLongMa = longMa.updateWith(BigDecimal.valueOf(candle.getClosingPrice())).value()
-                .map(toMovingAverageUpdated(longMa.period, candle.getTime()));
-
-        return Stream.concat(maybeShortMa.stream(), maybeLongMa.stream());
-    }
-
     @EventHandler
-    public void OrderPlaced(OrderPlaced event) {
+    public void orderPlaced(OrderPlaced event) {
         traderState.ifPresent(state -> {
             switch (event.getType()) {
                 case "BUY":
@@ -115,34 +102,87 @@ public class TraderEntity {
         });
     }
 
+
+    private Function<Integer, MovingAverage> movingAverageFor(String maType) {
+        switch (maType) {
+            case "simple":
+                return MovingAverages::simple;
+            case "exponential":
+                return MovingAverages::exponential;
+            default:
+                throw new IllegalArgumentException("Unsupported Moving Average type: " + maType);
+        }
+    }
+
+    private Optional<MovingAverageUpdated> updatedMovingAverage(MovingAverage currentMa, CandleStick candle) {
+        return currentMa.updateWith(BigDecimal.valueOf(candle.getClosingPrice()))
+                .value()
+                .map(toMovingAverageUpdated(currentMa.period, candle.getTime()));
+    }
+
+    public static TraderState buy(TraderState state, double quantity, double exchangeRate) {
+        if (state.getQuoteBalance() >= exchangeRate * quantity) {
+            return state.toBuilder()
+                    .setBaseBalance(quantity + state.getBaseBalance())
+                    .setQuoteBalance(state.getQuoteBalance() - exchangeRate * quantity)
+                    .build();
+        } else {
+            log.warn("not enough {} funds for entity!", state.getQuoteAsset());
+            return state;
+        }
+    }
+
+    public static TraderState sell(TraderState state, double quantity, double exchangeRate) {
+        if (state.getBaseBalance() >= quantity) {
+            return state.toBuilder()
+                    .setBaseBalance(state.getBaseBalance() - quantity)
+                    .setQuoteBalance(state.getQuoteBalance() + exchangeRate * quantity)
+                    .build();
+        } else {
+            log.warn("not enough {} funds for entity!", state.getBaseAsset());
+            return state;
+        }
+    }
+
     private Optional<TraderState> buy(double quantity, double exchangeRate) {
-        return traderState.flatMap(trader -> {
-            if (trader.getQuoteBalance() >= exchangeRate * quantity) {
-                return Optional.of(trader.toBuilder()
-                        .setBaseBalance(quantity + trader.getBaseBalance())
-                        .setQuoteBalance(trader.getQuoteBalance() - exchangeRate * quantity)
-                        .build());
-            } else {
-                log.warn("not enough {} funds for entity {}!", trader.getQuoteAsset(), entityId);
-                return Optional.empty();
-            }
-        });
+        return traderState.map(state -> buy(state, quantity, exchangeRate));
     }
 
     private Optional<TraderState> sell(double quantity, double exchangeRate) {
-        return traderState.flatMap(trader -> {
-            if (trader.getBaseBalance() >= quantity) {
-                return Optional.of(trader.toBuilder()
-                        .setBaseBalance(trader.getBaseBalance() - quantity)
-                        .setQuoteBalance(trader.getQuoteBalance() + exchangeRate * quantity)
-                        .build());
-            } else {
-                log.warn("not enough {} funds for entity {}!", trader.getBaseAsset(), entityId);
-                return Optional.empty();
-            }
-        });
+        return traderState.map(state -> sell(state, quantity, exchangeRate));
     }
 
+    private Optional<OrderPlaced> placeOrder(CandleStick candle, double updatedShortMa, double updatedLongMa) {
+        // if a new order should be placed then return it.
+        return traderState.flatMap(state -> {
+            var currentDiff = diff(state.getShortMaValue(), state.getLongMaValue());
+            var updatedDiff = diff(updatedShortMa, updatedLongMa);
+            var orderType = updatedDiff > 0 ? "BUY" : "SELL";
+            var slope = Math.abs(diff(updatedDiff, currentDiff));
+            double quantity = 10 * slope;
+            if (slope > state.getThreshold() && haveEnoughFunds(orderType, quantity)) {
+                return Optional.of(OrderPlaced.newBuilder()
+                        .setTime(candle.getTime())
+                        .setExchangeRate(candle.getClosingPrice())
+                        .setQuantity(quantity)
+                        .setType(orderType)
+                        .build());
+            }
+            return Optional.empty();
+        });
+
+    }
+
+    private boolean haveEnoughFunds(String orderType, double orderQuantity) {
+
+        Function<TraderState, Double> getBalance =
+                orderType.equals("BUY") ? TraderState::getQuoteBalance : TraderState::getBaseBalance;
+        return traderState.map(getBalance).stream().anyMatch(balance -> balance > orderQuantity);
+    }
+
+    private double diff(double a, double b) {
+        return (a - b) / a;
+    }
 
     private static Function<BigDecimal, MovingAverageUpdated> toMovingAverageUpdated(int period, long time) {
         return value -> MovingAverageUpdated.newBuilder()

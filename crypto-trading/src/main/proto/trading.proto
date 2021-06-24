@@ -20,7 +20,7 @@ message TraderState {
   string ma_type = 8; // MovingAverage implementation
   double short_ma_value = 9;
   double long_ma_value = 10;
-
+  double threshold = 11; // threshold to determine when to buy/sell in (0, 1)
 }
 
 message CandleStick {
@@ -82,6 +82,16 @@ service TradersView {
   }
 
   rpc ProcessMovingAverageUpdated(MovingAverageUpdated) returns (TraderState) {
+    option (akkaserverless.method).eventing.in = {
+      event_sourced_entity: "traders"
+    };
+    option (akkaserverless.method).view.update = {
+      table: "traders"
+      transform_updates: true
+    };
+  }
+
+  rpc ProcessOrderPlaced(OrderPlaced) returns (TraderState) {
     option (akkaserverless.method).eventing.in = {
       event_sourced_entity: "traders"
     };
