@@ -10,7 +10,7 @@ import "google/protobuf/empty.proto";
 import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 
-message Trader {
+message TraderState {
   string base_asset = 2; // asset being sold/bought (i.e. BTC/EUR -> BTC)
   string quote_asset = 3; // asset used to sell/buying (i.e. BTC/EUR -> EUR)
   int32 short_ma_period = 4; // the number of periods on which to calculate the short moving average
@@ -35,7 +35,7 @@ message ByBaseAsset {
 // commands
 message NewTraderCommand {
   string trader_id = 1 [(akkaserverless.field).entity_key = true];
-  Trader trader = 2;
+  TraderState trader = 2;
 }
 
 message AddCandleCommand {
@@ -45,7 +45,7 @@ message AddCandleCommand {
 
 // events
 message TraderAdded {
-  Trader trader = 1;
+  TraderState trader = 1;
 }
 
 message OrderPlaced {
@@ -65,13 +65,13 @@ service CryptoTradingService {
 
   rpc AddCandle (AddCandleCommand) returns (google.protobuf.Empty) {}
 
-  rpc NewTrader (NewTraderCommand) returns (Trader) {}
+  rpc NewTrader (NewTraderCommand) returns (TraderState) {}
 
 }
 
 service TradersView {
 
-  rpc ProcessTraderAdded(TraderAdded) returns (Trader) {
+  rpc ProcessTraderAdded(TraderAdded) returns (TraderState) {
     option (akkaserverless.method).eventing.in = {
       event_sourced_entity: "traders"
     };
@@ -81,7 +81,7 @@ service TradersView {
     };
   }
 
-  rpc ProcessMovingAverageUpdated(MovingAverageUpdated) returns (Trader) {
+  rpc ProcessMovingAverageUpdated(MovingAverageUpdated) returns (TraderState) {
     option (akkaserverless.method).eventing.in = {
       event_sourced_entity: "traders"
     };
@@ -91,7 +91,7 @@ service TradersView {
     };
   }
 
-  rpc GetTraders (ByBaseAsset) returns (stream Trader) {
+  rpc GetTraders (ByBaseAsset) returns (stream TraderState) {
     option (akkaserverless.method).view.query = {
       query: "SELECT * FROM traders WHERE base_asset = :base_asset"
     };

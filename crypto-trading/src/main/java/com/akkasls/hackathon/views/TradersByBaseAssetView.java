@@ -3,7 +3,7 @@ package com.akkasls.hackathon.views;
 import com.akkaserverless.javasdk.view.UpdateHandler;
 import com.akkaserverless.javasdk.view.View;
 import com.akkasls.hackathon.MovingAverageUpdated;
-import com.akkasls.hackathon.Trader;
+import com.akkasls.hackathon.TraderState;
 import com.akkasls.hackathon.TraderAdded;
 
 import java.util.Optional;
@@ -12,12 +12,12 @@ import java.util.Optional;
 public class TradersByBaseAssetView {
 
     @UpdateHandler
-    public Trader processTraderAdded(TraderAdded event, Optional<Trader> maybeState) {
+    public TraderState processTraderAdded(TraderAdded event, Optional<TraderState> maybeState) {
         return maybeState.orElse(event.getTrader());
     }
 
     @UpdateHandler
-    public Trader processMovingAverageUpdated(MovingAverageUpdated event, Trader state) {
+    public TraderState processMovingAverageUpdated(MovingAverageUpdated event, TraderState state) {
         var isLongMa = event.getPeriod() == state.getLongMaPeriod();
         return isLongMa
                 ? state.toBuilder().setLongMaValue(event.getValue()).build()

@@ -10,7 +10,7 @@ import com.akkasls.hackathon.CandleStick;
 import com.akkasls.hackathon.MovingAverageUpdated;
 import com.akkasls.hackathon.NewTraderCommand;
 import com.akkasls.hackathon.OrderPlaced;
-import com.akkasls.hackathon.Trader;
+import com.akkasls.hackathon.TraderState;
 import com.akkasls.hackathon.TraderAdded;
 import com.akkasls.hackathon.indicators.MovingAverages;
 import com.akkasls.hackathon.indicators.MovingAverages.MovingAverage;
@@ -28,7 +28,7 @@ public class TraderEntity {
 
     private final String entityId;
 
-    private Optional<Trader> traderState = Optional.empty();
+    private Optional<TraderState> traderState = Optional.empty();
 
     // auxiliary stateful deps – not part of the state
     private MovingAverage shortMa;
@@ -39,7 +39,7 @@ public class TraderEntity {
     }
 
     @CommandHandler
-    public Trader newTrader(NewTraderCommand command, CommandContext ctx) {
+    public TraderState newTrader(NewTraderCommand command, CommandContext ctx) {
         ctx.emit(TraderAdded.newBuilder().setTrader(command.getTrader()).build());
         return command.getTrader();
 
@@ -115,7 +115,7 @@ public class TraderEntity {
         });
     }
 
-    private Optional<Trader> buy(double quantity, double exchangeRate) {
+    private Optional<TraderState> buy(double quantity, double exchangeRate) {
         return traderState.flatMap(trader -> {
             if (trader.getQuoteBalance() >= exchangeRate * quantity) {
                 return Optional.of(trader.toBuilder()
@@ -129,7 +129,7 @@ public class TraderEntity {
         });
     }
 
-    private Optional<Trader> sell(double quantity, double exchangeRate) {
+    private Optional<TraderState> sell(double quantity, double exchangeRate) {
         return traderState.flatMap(trader -> {
             if (trader.getBaseBalance() >= quantity) {
                 return Optional.of(trader.toBuilder()
