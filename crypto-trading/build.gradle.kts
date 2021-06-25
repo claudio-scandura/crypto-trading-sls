@@ -56,7 +56,7 @@ tasks {
 
         setDockerfile(rootProject.file("Dockerfile"))
 
-        name = "cscandura/${project.name}:0.1"
+        name = "cscandura/${project.name}:0.3"
 
         files(distTar.get().outputs)
 

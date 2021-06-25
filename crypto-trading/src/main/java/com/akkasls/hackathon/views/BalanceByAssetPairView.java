@@ -7,10 +7,9 @@ import com.akkasls.hackathon.MovingAverageUpdated;
 import com.akkasls.hackathon.OrderPlaced;
 import com.akkasls.hackathon.TraderAdded;
 import com.akkasls.hackathon.TraderBalance;
-import com.akkasls.hackathon.TraderState;
-import com.akkasls.hackathon.entities.TraderEntity;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.Instant;
 import java.util.Optional;
 
 @Slf4j
@@ -18,13 +17,16 @@ import java.util.Optional;
 public class BalanceByAssetPairView {
 
     @UpdateHandler
-    public TraderBalance processTraderAdded(TraderAdded event, Optional<TraderBalance> maybeState) {
+    public TraderBalance processTraderAdded(TraderAdded event) {
         var trader = event.getTrader();
-        return maybeState.orElse(TraderBalance.newBuilder()
+        return TraderBalance.newBuilder()
                 .setTraderId(trader.getTraderId())
+                .setBaseAsset(trader.getBaseAsset())
+                .setQuoteAsset(trader.getQuoteAsset())
                 .setBaseBalance(trader.getBaseBalance())
                 .setQuoteBalance(trader.getQuoteBalance())
-                .build());
+                .setLastUpdatedAt(Instant.EPOCH.toEpochMilli())
+                .build();
     }
 
     @UpdateHandler
@@ -39,23 +41,22 @@ public class BalanceByAssetPairView {
                 .setExchangeRate(event.getExchangeRate());
         switch (event.getType()) {
             case "BUY":
-                var res = buy(event.getQuantity(), event.getExchangeRate(), state.getQuoteBalance(),
-                        state.getBaseBalance());
-                if (res.isPresent()) {
-                    var balances = res.get();
-                    return builder.setBaseBalance(balances.first()).setQuoteBalance(balances.second()).build();
-                } else {
-                    return state;
-                }
+                return buy(event.getQuantity(), event.getExchangeRate(), state.getQuoteBalance(),
+                        state.getBaseBalance()).map(baseAndQuote ->
+                        builder.setBaseBalance(baseAndQuote.first())
+                                .setQuoteBalance(baseAndQuote.second())
+                                .setLastUpdatedAt(event.getTime())
+                                .build()
+                ).orElse(state);
+
             case "SELL":
-                var sellResult = sell(event.getQuantity(), event.getExchangeRate(), state.getQuoteBalance(),
-                        state.getBaseBalance());
-                if (sellResult.isPresent()) {
-                    var balances = sellResult.get();
-                    return builder.setBaseBalance(balances.first()).setQuoteBalance(balances.second()).build();
-                } else {
-                    return state;
-                }
+                return sell(event.getQuantity(), event.getExchangeRate(), state.getQuoteBalance(),
+                        state.getBaseBalance()).map(baseAndQuote ->
+                        builder.setBaseBalance(baseAndQuote.first())
+                                .setQuoteBalance(baseAndQuote.second())
+                                .setLastUpdatedAt(event.getTime())
+                                .build()
+                ).orElse(state);
             default:
                 log.warn("Unknown order type '{}'", event.getType());
                 return state;

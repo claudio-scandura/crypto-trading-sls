@@ -1,13 +1,11 @@
 package com.akkasls.hackathon.views;
 
-import akka.japi.Pair;
 import com.akkaserverless.javasdk.view.UpdateHandler;
 import com.akkaserverless.javasdk.view.View;
 import com.akkasls.hackathon.MovingAverage;
 import com.akkasls.hackathon.MovingAverageUpdated;
 import com.akkasls.hackathon.OrderPlaced;
 import com.akkasls.hackathon.TraderAdded;
-import com.akkasls.hackathon.TraderBalance;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Optional;
@@ -17,27 +15,33 @@ import java.util.Optional;
 public class MovingAveragesByPeriodView {
 
     @UpdateHandler
-    public MovingAverage processTraderAdded(TraderAdded event, Optional<MovingAverage> maybeState) {
+    public MovingAverage processTraderAdded(TraderAdded event) {
         var trader = event.getTrader();
-        return maybeState.orElse(MovingAverage.newBuilder()
+        return MovingAverage.newBuilder()
                 .setLongMaValue(trader.getLongMaValue())
                 .setShortMaValue(trader.getShortMaValue())
                 .setShortMaPeriod(trader.getShortMaPeriod())
                 .setLongMaPeriod(trader.getLongMaPeriod())
-                .build());
+                .setTime(-1)
+                .setType(trader.getMaType())
+                .build();
     }
 
     @UpdateHandler
     public MovingAverage processMovingAverageUpdated(MovingAverageUpdated event, Optional<MovingAverage> maybeState) {
-        var state = maybeState.orElse(MovingAverage.newBuilder().build());
+        var stateBuilder = maybeState.orElse(MovingAverage.newBuilder().build()).toBuilder();
 
-        if (event.getPeriod() == state.getShortMaPeriod()) {
-            return state.toBuilder().setShortMaValue(event.getValue()).setTime(event.getTime()).build();
+        if (!event.getType().equals(stateBuilder.getType()))
+            return stateBuilder.build();
+
+        if (event.getPeriod() == stateBuilder.getShortMaPeriod()) {
+            stateBuilder.setShortMaValue(event.getValue()).setTime(event.getTime()).build();
         }
-        if (event.getPeriod() == state.getLongMaPeriod()) {
-            return state.toBuilder().setLongMaValue(event.getValue()).setTime(event.getTime()).build();
+        if (event.getPeriod() == stateBuilder.getLongMaPeriod()) {
+            return stateBuilder.setLongMaValue(event.getValue()).setTime(event.getTime()).build();
         }
-        return state;
+
+        return stateBuilder.build();
     }
 
     @UpdateHandler

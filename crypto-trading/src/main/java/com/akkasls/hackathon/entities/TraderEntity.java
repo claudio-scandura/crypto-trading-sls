@@ -63,14 +63,11 @@ public class TraderEntity {
 
     @EventHandler
     public void traderAdded(TraderAdded event) {
-        traderState.ifPresentOrElse(nu -> {
-        }, () -> {
-            var trader = event.getTrader();
-            var maType = trader.getMaType();
-            traderState = Optional.of(trader);
-            shortMa = movingAverageFor(maType).apply(trader.getShortMaPeriod());
-            longMa = movingAverageFor(maType).apply(trader.getLongMaPeriod());
-        });
+        var trader = event.getTrader();
+        var maType = trader.getMaType();
+        traderState = Optional.of(trader);
+        shortMa = movingAverageFor(maType).apply(trader.getShortMaPeriod());
+        longMa = movingAverageFor(maType).apply(trader.getLongMaPeriod());
     }
 
     @EventHandler
@@ -115,9 +112,10 @@ public class TraderEntity {
     }
 
     private Optional<MovingAverageUpdated> updatedMovingAverage(MovingAverage currentMa, CandleStick candle) {
-        return currentMa.updateWith(BigDecimal.valueOf(candle.getClosingPrice()))
+        return traderState.flatMap(state -> currentMa.updateWith(BigDecimal.valueOf(candle.getClosingPrice()))
                 .value()
-                .map(toMovingAverageUpdated(currentMa.period, candle.getTime()));
+                .map(toMovingAverageUpdated(currentMa.period, candle.getTime(), state.getMaType()))
+        );
     }
 
     public static TraderState buy(TraderState state, double quantity, double exchangeRate) {
@@ -154,23 +152,25 @@ public class TraderEntity {
 
     private Optional<OrderPlaced> placeOrder(CandleStick candle, double updatedShortMa, double updatedLongMa) {
         // if a new order should be placed then return it.
-        return traderState.flatMap(state -> {
-            var currentDiff = diff(state.getShortMaValue(), state.getLongMaValue());
-            var updatedDiff = diff(updatedShortMa, updatedLongMa);
-            var orderType = updatedDiff > 0 ? "BUY" : "SELL";
-            var slope = Math.abs(diff(updatedDiff, currentDiff));
-            double quantity = 10 * slope;
-            if (slope > state.getThreshold() && haveEnoughFunds(orderType, quantity)) {
-                return Optional.of(OrderPlaced.newBuilder()
-                        .setTraderId(entityId)
-                        .setTime(candle.getTime())
-                        .setExchangeRate(candle.getClosingPrice())
-                        .setQuantity(quantity)
-                        .setType(orderType)
-                        .build());
-            }
-            return Optional.empty();
-        });
+        return traderState
+                .filter(s -> s.getShortMaValue() > 0 && s.getLongMaValue() > 0)
+                .flatMap(state -> {
+                    var currentDiff = diff(state.getShortMaValue(), state.getLongMaValue());
+                    var updatedDiff = diff(updatedShortMa, updatedLongMa);
+                    var orderType = updatedDiff > 0 ? "BUY" : "SELL";
+                    var slope = Math.abs(diff(updatedDiff, currentDiff));
+                    double quantity = 10 * slope;
+                    if (slope > state.getThreshold() && haveEnoughFunds(orderType, quantity)) {
+                        return Optional.of(OrderPlaced.newBuilder()
+                                .setTraderId(entityId)
+                                .setTime(candle.getTime())
+                                .setExchangeRate(candle.getClosingPrice())
+                                .setQuantity(quantity)
+                                .setType(orderType)
+                                .build());
+                    }
+                    return Optional.empty();
+                });
 
     }
 
@@ -185,11 +185,13 @@ public class TraderEntity {
         return (a - b) / a;
     }
 
-    private static Function<BigDecimal, MovingAverageUpdated> toMovingAverageUpdated(int period, long time) {
+    private static Function<BigDecimal, MovingAverageUpdated> toMovingAverageUpdated(int period, long time,
+                                                                                     String type) {
         return value -> MovingAverageUpdated.newBuilder()
                 .setPeriod(period)
                 .setValue(value.doubleValue())
                 .setTime(time)
+                .setType(type)
                 .build();
     }
 

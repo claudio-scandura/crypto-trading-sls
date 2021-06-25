@@ -50,6 +50,7 @@ message TraderBalance {
   double base_balance = 4;
   double quote_balance = 5;
   double exchange_rate = 6;
+  int64 lastUpdatedAt = 7;
 }
 
 message MovingAverage {
@@ -58,6 +59,7 @@ message MovingAverage {
   int32 long_ma_period = 3;
   double long_ma_value = 4;
   int64 time = 5;
+  string type = 6;
 }
 
 // commands
@@ -88,6 +90,7 @@ message MovingAverageUpdated {
   int32 period = 1;
   double value = 2;
   int64 time = 3;
+  string type = 4;
 }
 
 service CryptoTradingService {
@@ -210,7 +213,7 @@ service MovingAverageView {
 
   rpc GetMovingAverage (ByPeriod) returns (stream MovingAverage) {
     option (akkaserverless.method).view.query = {
-      query: "SELECT * FROM movingAverages WHERE short_ma_period = :short_ma_period or long_ma_period = :long_ma_period"
+      query: "SELECT * FROM movingAverages WHERE short_ma_period = :short_ma_period and long_ma_period = :long_ma_period"
     };
   }
 }

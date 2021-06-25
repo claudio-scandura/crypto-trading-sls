@@ -9,15 +9,13 @@ import com.akkasls.hackathon.TraderState;
 import com.akkasls.hackathon.entities.TraderEntity;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Optional;
-
 @Slf4j
 @View
 public class TradersByBaseAssetView {
 
     @UpdateHandler
-    public TraderState processTraderAdded(TraderAdded event, Optional<TraderState> maybeState) {
-        return maybeState.orElse(event.getTrader());
+    public TraderState processTraderAdded(TraderAdded event) {
+        return event.getTrader();
     }
 
     @UpdateHandler

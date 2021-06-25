@@ -38,7 +38,7 @@ public class MovingAverages {
             } else {
                 observations.push(observation);
                 if (observations.size() == period) {
-                    value = observations.stream().reduce(BigDecimal.ZERO, BigDecimal::add).divide(period());
+                    value = observations.stream().reduce(BigDecimal.ZERO, BigDecimal::add).divide(period(), RoundingMode.HALF_EVEN);
                 }
             }
             return this;
@@ -71,7 +71,7 @@ public class MovingAverages {
 
         @Override
         protected MovingAverage updateWith(BigDecimal currentValue, BigDecimal observation) {
-            var k = BigDecimal.valueOf(2 / (1 + super.period));
+            var k = BigDecimal.valueOf(2.0 / (double) (1 + super.period));
             super.value = observation.multiply(k).add(currentValue.multiply(BigDecimal.ONE.subtract(k)));
             return this;
         }
