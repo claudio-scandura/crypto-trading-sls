@@ -24,6 +24,7 @@ public class MovingAveragesByPeriodView {
                 .setLongMaPeriod(trader.getLongMaPeriod())
                 .setTime(-1)
                 .setType(trader.getMaType())
+                .setSymbol(trader.getBaseAsset() + "/" + trader.getQuoteAsset())
                 .build();
     }
 

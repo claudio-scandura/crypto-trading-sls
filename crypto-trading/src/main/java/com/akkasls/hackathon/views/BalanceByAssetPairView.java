@@ -26,6 +26,8 @@ public class BalanceByAssetPairView {
                 .setBaseBalance(trader.getBaseBalance())
                 .setQuoteBalance(trader.getQuoteBalance())
                 .setLastUpdatedAt(Instant.EPOCH.toEpochMilli())
+                .setBuyOrders(0)
+                .setSellOrders(0)
                 .build();
     }
 
@@ -46,6 +48,7 @@ public class BalanceByAssetPairView {
                         builder.setBaseBalance(baseAndQuote.first())
                                 .setQuoteBalance(baseAndQuote.second())
                                 .setLastUpdatedAt(event.getTime())
+                                .setBuyOrders(state.getBuyOrders() + 1)
                                 .build()
                 ).orElse(state);
 
@@ -55,6 +58,7 @@ public class BalanceByAssetPairView {
                         builder.setBaseBalance(baseAndQuote.first())
                                 .setQuoteBalance(baseAndQuote.second())
                                 .setLastUpdatedAt(event.getTime())
+                                .setSellOrders(state.getSellOrders() + 1)
                                 .build()
                 ).orElse(state);
             default:

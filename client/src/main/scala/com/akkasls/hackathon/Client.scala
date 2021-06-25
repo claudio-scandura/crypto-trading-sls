@@ -44,7 +44,8 @@ object Client extends App {
 
   implicit val system = ActorSystem(Behaviors.empty, "trading-platform-client")
 
-  val akkaServerlessHost = "localhost"
+  val akkaServerlessHost = "old-scene-9383.us-east1.apps.akkaserverless.io"
+
 
 
   var channel = NettyChannelBuilder.forAddress(akkaServerlessHost, 443)
@@ -94,7 +95,10 @@ object Client extends App {
           state.getBaseAsset,
           fixDigits(state.getBaseBalance),
           fixDigits(state.getExchangeRate),
-          state.getQuoteAsset, fixDigits(state.getQuoteBalance)
+          state.getQuoteAsset,
+          fixDigits(state.getQuoteBalance),
+          state.getBuyOrders.toString,
+          state.getSellOrders.toString,
         )
       }
       .via(CsvFormatting.format(delimiter = CsvFormatting.Tab))
@@ -118,7 +122,7 @@ object Client extends App {
           .setMaType(movingAverageType)
           .setShortMaPeriod(shortMaPeriod)
           .setLongMaPeriod(longMaPeriod)
-          .setBaseBalance(10)
+          .setBaseBalance(1)
           .setQuoteBalance(1000)
           .setThreshold(threshold)
         ).build()

@@ -51,6 +51,8 @@ message TraderBalance {
   double quote_balance = 5;
   double exchange_rate = 6;
   int64 lastUpdatedAt = 7;
+  int32 buyOrders = 8;
+  int32 sellOrders = 9;
 }
 
 message MovingAverage {
@@ -60,6 +62,7 @@ message MovingAverage {
   double long_ma_value = 4;
   int64 time = 5;
   string type = 6;
+  string symbol = 7;
 }
 
 // commands
