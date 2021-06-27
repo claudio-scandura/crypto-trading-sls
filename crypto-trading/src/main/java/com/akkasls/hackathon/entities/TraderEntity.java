@@ -7,6 +7,7 @@ import com.akkaserverless.javasdk.eventsourcedentity.EventHandler;
 import com.akkaserverless.javasdk.eventsourcedentity.EventSourcedEntity;
 import com.akkasls.hackathon.AddCandleCommand;
 import com.akkasls.hackathon.CandleStick;
+import com.akkasls.hackathon.GetTraderCommand;
 import com.akkasls.hackathon.MovingAverageUpdated;
 import com.akkasls.hackathon.NewTraderCommand;
 import com.akkasls.hackathon.OrderPlaced;
@@ -40,9 +41,16 @@ public class TraderEntity {
 
     @CommandHandler
     public TraderState newTrader(NewTraderCommand command, CommandContext ctx) {
-        ctx.emit(TraderAdded.newBuilder().setTrader(command.getTrader()).build());
+        var event = TraderAdded.newBuilder()
+                .setTrader(command.getTrader().toBuilder().setTraderId(this.entityId))
+                .build();
+        ctx.emit(event);
         return command.getTrader();
+    }
 
+    @CommandHandler
+    public TraderState getTrader(GetTraderCommand command) {
+        return traderState.orElse(TraderState.getDefaultInstance());
     }
 
     @CommandHandler

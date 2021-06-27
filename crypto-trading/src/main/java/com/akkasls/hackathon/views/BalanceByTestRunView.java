@@ -14,13 +14,14 @@ import java.util.Optional;
 
 @Slf4j
 @View
-public class BalanceByAssetPairView {
+public class BalanceByTestRunView {
 
     @UpdateHandler
     public TraderBalance processTraderAdded(TraderAdded event) {
         var trader = event.getTrader();
         return TraderBalance.newBuilder()
                 .setTraderId(trader.getTraderId())
+                .setTestRunId(trader.getTestRunId())
                 .setBaseAsset(trader.getBaseAsset())
                 .setQuoteAsset(trader.getQuoteAsset())
                 .setBaseBalance(trader.getBaseBalance())

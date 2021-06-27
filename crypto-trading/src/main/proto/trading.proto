@@ -22,6 +22,7 @@ message TraderState {
   double short_ma_value = 9;
   double long_ma_value = 10;
   double threshold = 11; // threshold to determine when to buy/sell in (0, 1)
+  string test_run_id = 12;
 }
 
 message CandleStick {
@@ -29,13 +30,8 @@ message CandleStick {
   int64 time = 2;
 }
 
-message ByBaseAsset {
-  string base_asset = 1;
-}
-
-message ByAssetPair {
-  string base_asset = 1;
-  string quote_asset = 2;
+message ByTestRun {
+  string test_run_id = 1;
 }
 
 message ByPeriod {
@@ -53,6 +49,7 @@ message TraderBalance {
   int64 lastUpdatedAt = 7;
   int32 buyOrders = 8;
   int32 sellOrders = 9;
+  string test_run_id = 10;
 }
 
 message MovingAverage {
@@ -69,6 +66,10 @@ message MovingAverage {
 message NewTraderCommand {
   string trader_id = 1 [(akkaserverless.field).entity_key = true];
   TraderState trader = 2;
+}
+
+message GetTraderCommand {
+  string trader_id = 1 [(akkaserverless.field).entity_key = true];
 }
 
 message AddCandleCommand {
@@ -101,6 +102,8 @@ service CryptoTradingService {
   rpc AddCandle (AddCandleCommand) returns (google.protobuf.Empty) {}
 
   rpc NewTrader (NewTraderCommand) returns (TraderState) {}
+
+  rpc GetTrader (GetTraderCommand) returns (TraderState) {}
 
 }
 
@@ -136,9 +139,9 @@ service TradersView {
     };
   }
 
-  rpc GetTraders (ByBaseAsset) returns (stream TraderState) {
+  rpc GetTraders (ByTestRun) returns (stream TraderState) {
     option (akkaserverless.method).view.query = {
-      query: "SELECT * FROM traders WHERE base_asset = :base_asset"
+      query: "SELECT * FROM traders WHERE test_run_id = :test_run_id"
     };
   }
 }
@@ -175,9 +178,9 @@ service BalanceView {
     };
   }
 
-  rpc GetTradersBalance (ByAssetPair) returns (stream TraderBalance) {
+  rpc GetTradersBalance (ByTestRun) returns (stream TraderBalance) {
     option (akkaserverless.method).view.query = {
-      query: "SELECT * FROM traderBalances where base_asset = :base_asset and quote_asset = :quote_asset"
+      query: "SELECT * FROM traderBalances where test_run_id = :test_run_id"
     };
   }
 }

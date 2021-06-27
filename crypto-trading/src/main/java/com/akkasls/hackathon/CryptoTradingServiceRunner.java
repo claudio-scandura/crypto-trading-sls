@@ -2,9 +2,9 @@ package com.akkasls.hackathon;
 
 import com.akkaserverless.javasdk.AkkaServerless;
 import com.akkasls.hackathon.entities.TraderEntity;
-import com.akkasls.hackathon.views.BalanceByAssetPairView;
+import com.akkasls.hackathon.views.BalanceByTestRunView;
 import com.akkasls.hackathon.views.MovingAveragesByPeriodView;
-import com.akkasls.hackathon.views.TradersByBaseAssetView;
+import com.akkasls.hackathon.views.TradersByTestRunView;
 import lombok.SneakyThrows;
 
 public class CryptoTradingServiceRunner {
@@ -18,12 +18,12 @@ public class CryptoTradingServiceRunner {
                         Trading.getDescriptor()
                         )
                 .registerView(
-                        TradersByBaseAssetView.class,
+                        TradersByTestRunView.class,
                         Trading.getDescriptor().findServiceByName("TradersView"),
                         "tradersByBaseAsset",
                         Trading.getDescriptor())
                 .registerView(
-                        BalanceByAssetPairView.class,
+                        BalanceByTestRunView.class,
                         Trading.getDescriptor().findServiceByName("BalanceView"),
                         "balanceByAssetPair",
                         Trading.getDescriptor())
