@@ -36,7 +36,7 @@ public class MovingAveragesByPeriodView {
             return stateBuilder.build();
 
         if (event.getPeriod() == stateBuilder.getShortMaPeriod()) {
-            stateBuilder.setShortMaValue(event.getValue()).setTime(event.getTime()).build();
+            return stateBuilder.setShortMaValue(event.getValue()).setTime(event.getTime()).build();
         }
         if (event.getPeriod() == stateBuilder.getLongMaPeriod()) {
             return stateBuilder.setLongMaValue(event.getValue()).setTime(event.getTime()).build();

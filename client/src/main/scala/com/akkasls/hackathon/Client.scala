@@ -18,8 +18,6 @@ import java.net.http.HttpResponse.BodyHandlers
 import java.net.http.{HttpClient, HttpRequest}
 import java.nio.file.Path
 import java.time.Instant
-import java.time.temporal.ChronoUnit
-import java.util.UUID
 import java.util.concurrent.Executors
 import scala.compat.java8.FutureConverters
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -51,29 +49,30 @@ object Client extends App {
   val HttpExecutor = Executors.newCachedThreadPool()
   val GrpcExecutor = Executors.newFixedThreadPool(8)
 
-  val akkaServerlessHost = "sweet-snowflake-6945.us-east1.apps.akkaserverless.io"
+  val akkaServerlessHost = "tight-waterfall-9695.us-east1.apps.akkaserverless.io"
 
 
-    var channel = NettyChannelBuilder.forAddress(akkaServerlessHost, 443)
-      .sslContext(GrpcSslContexts.forClient().build())
-      .build()
+//    var channel = NettyChannelBuilder.forAddress(akkaServerlessHost, 443)
+//      .sslContext(GrpcSslContexts.forClient().build())
+//      .build()
 
-//  var channel = NettyChannelBuilder.forAddress("localhost", 9000)
-//    .usePlaintext()
-//    .build()
+  var channel = NettyChannelBuilder.forAddress("localhost", 9000)
+    .usePlaintext()
+    .build()
 
   var tradingServiceClient = CryptoTradingServiceGrpc.newBlockingStub(channel)
   val tradingViewsClient = TradersViewGrpc.newBlockingStub(channel)
   val balanceViewsClient = BalanceViewGrpc.newBlockingStub(channel)
 
   val testRun = config.getString("test-run-id")
+  val candleSize = config.getDuration("candlestick-size").toMinutes.minutes
 
   val traders = Future.sequence {
     List(
-      createTraders(testRun, 2, AssetPairs.`BTC/EUR`).map(AssetPairs.`BTC/EUR` -> _),
-      createTraders(testRun, 2, AssetPairs.`BTC/USDT`).map(AssetPairs.`BTC/USDT` -> _),
-      createTraders(testRun, 2, AssetPairs.`ETH/USDT`).map(AssetPairs.`ETH/USDT` -> _),
-      createTraders(testRun, 2, AssetPairs.`ETH/EUR`).map(AssetPairs.`ETH/EUR` -> _)
+      createTraders(testRun, 1, candleSize, AssetPairs.`BTC/EUR`).map(AssetPairs.`BTC/EUR` -> _),
+      createTraders(testRun, 1, candleSize, AssetPairs.`BTC/USDT`).map(AssetPairs.`BTC/USDT` -> _),
+      createTraders(testRun, 1, candleSize, AssetPairs.`ETH/USDT`).map(AssetPairs.`ETH/USDT` -> _),
+      createTraders(testRun, 1, candleSize, AssetPairs.`ETH/EUR`).map(AssetPairs.`ETH/EUR` -> _)
     )
   }.map(_.groupBy(_._1).view.mapValues(_.flatMap(_._2)))
 
@@ -98,7 +97,9 @@ object Client extends App {
   }
 
   backTest.onComplete {
-    case any => logger.info("Backtest {} completed with {}", testRun, any)
+    case any =>
+      logger.info("Backtest {} completed with {}", testRun, any)
+      sys.exit(0)
   }
 
   def queryBalances(testRun: String) = {
@@ -125,14 +126,14 @@ object Client extends App {
 
   }
 
-  def createTraders(testRun: String, n: Int, assetPair: AssetPair): Future[Seq[String]] = {
+  def createTraders(testRun: String, n: Int, candleSize: Duration, assetPair: AssetPair): Future[Seq[String]] = {
     Source(List.fill(n) {
 
       val movingAverageType = if (Math.random() > 0.5) "simple" else "exponential"
       val shortMaPeriod = 5 + Random.nextInt(15)
-      val longMaPeriod = 10 + Random.nextInt(90)
-      val threshold = BigDecimal(Math.random()).setScale(2, RoundingMode.HALF_UP).min(0.30)
-      val traderId = s"${assetPair._1}${assetPair._2}_1m_${movingAverageType}_${shortMaPeriod}_${longMaPeriod}_$threshold"
+      val longMaPeriod = shortMaPeriod + Random.nextInt(90)
+      val threshold = BigDecimal(Math.random()).setScale(2, RoundingMode.HALF_UP).min(0.20)
+      val traderId = s"${assetPair._1}${assetPair._2}_${candleSize.toMinutes}m_${movingAverageType}_${shortMaPeriod}_${longMaPeriod}_$threshold"
       NewTraderCommand.newBuilder()
         .setTraderId(traderId)
         .setTrader(TraderState.newBuilder()

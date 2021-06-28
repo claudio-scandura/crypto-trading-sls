@@ -22,7 +22,7 @@ message TraderState {
   double short_ma_value = 9;
   double long_ma_value = 10;
   double threshold = 11; // threshold to determine when to buy/sell in (0, 1)
-  string test_run_id = 12;
+  string test_run_id = 12; // identify a backtest
 }
 
 message CandleStick {
