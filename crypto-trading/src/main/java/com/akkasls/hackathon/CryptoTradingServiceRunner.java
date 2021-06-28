@@ -20,17 +20,17 @@ public class CryptoTradingServiceRunner {
                 .registerView(
                         TradersByTestRunView.class,
                         Trading.getDescriptor().findServiceByName("TradersView"),
-                        "tradersByBaseAsset",
+                        "tradersView",
                         Trading.getDescriptor())
                 .registerView(
                         BalanceByTestRunView.class,
                         Trading.getDescriptor().findServiceByName("BalanceView"),
-                        "balanceByAssetPair",
+                        "balanceView",
                         Trading.getDescriptor())
                 .registerView(
                         MovingAveragesByPeriodView.class,
                         Trading.getDescriptor().findServiceByName("MovingAverageView"),
-                        "movingAveragesByPeriod",
+                        "movingAverageView",
                         Trading.getDescriptor())
                 .start().toCompletableFuture().get();
     }
